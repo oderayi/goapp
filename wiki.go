@@ -29,6 +29,11 @@ var templates = template.Must(template.ParseFiles(templateDir+"/edit.html", temp
  */
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
+/**
+* Regex for searching for [PageName] for inter-page links
+ */
+var interPage = regexp.MustCompile(`\[([a-zA-Z0-9]+)\]`)
+
 /*Page structure */
 type Page struct {
 	Title string
@@ -62,6 +67,18 @@ func loadPage(title string) (*Page, error) {
 }
 
 /**
+* Replace inter-page links variables [PageName]
+* with html links
+ */
+func replaceInterPageLinks(body []byte) []byte {
+	body = interPage.ReplaceAllFunc(body, func(s []byte) []byte {
+		m := string(s[1 : len(s)-1])
+		return []byte("<a href=\"/view/" + m + "\"> " + m + "</a>")
+	})
+	return body
+}
+
+/**
 * http handler for frontpage
  */
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +94,8 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
-	renderTemplate(w, "view", p)
+	nP := &Page{Title: p.Title, Body: replaceInterPageLinks(p.Body)}
+	renderTemplate(w, "view", nP)
 }
 
 /**
